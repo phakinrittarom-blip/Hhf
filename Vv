@@ -1,0 +1,55 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local LP = Players.LocalPlayer
+local Cam = workspace.CurrentCamera
+local GuiParent = LP:WaitForChild("PlayerGui")
+
+local S = {Speed=16, Jump=50, FlySpeed=50, Push=150, Fly=false, ESP=false}
+local BV, BG, Conn
+local ESPFolder = Instance.new("Folder", GuiParent)
+ESPFolder.Name = "ESP"
+
+local function Push()
+	local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+	for _,p in pairs(Players:GetPlayers()) do
+		if p \~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+			local t = p.Character.HumanoidRootPart
+			t.AssemblyLinearVelocity = (t.Position - hrp.Position).Unit * S.Push + Vector3.new(0,40,0)
+		end
+	end
+end
+
+local function StopFly()
+	S.Fly = false
+	if Conn then Conn:Disconnect() Conn=nil end
+	if BV then BV:Destroy() BV=nil end
+	if BG then BG:Destroy() BG=nil end
+	local h = LP.Character and LP.Character:FindFirstChild("Humanoid")
+	if h then h.PlatformStand = false end
+end
+
+local function StartFly()
+	local c = LP.Character
+	if not c then return end
+	local hrp,h = c:FindFirstChild("HumanoidRootPart"), c:FindFirstChild("Humanoid")
+	if not hrp or not h then return end
+	StopFly()
+	S.Fly = true
+	h.PlatformStand = true
+	BV = Instance.new("BodyVelocity", hrp)
+	BV.MaxForce = Vector3.new(9e9,9e9,9e9)
+	BG = Instance.new("BodyGyro", hrp)
+	BG.MaxTorque = Vector3.new(9e9,9e9,9e9)
+	BG.P = 9e4
+	Conn = RunService.RenderStepped:Connect(function()
+		if not S.Fly or not hrp.Parent then StopFly() return end
+		BG.CFrame = Cam.CFrame
+		local m = Vector3.zero
+		if UIS:IsKeyDown(Enum.KeyCode.W) then m = m + Cam.CFrame.LookVector end
+		if UIS:IsKeyDown(Enum.KeyCode.S) then m = m - Cam.CFrame.LookVector end
+		if UIS:IsKeyDown(Enum.KeyCode.A) then m = m - Cam.CFrame.RightVector end
+		if UIS:IsKeyDown(Enum.KeyCode.D) then m = m + Cam.CFrame.RightVector end
+		if UIS:IsKeyDown(Enum.KeyCode.Space) then m = m + Vector3.new(0,1,0) end
+		if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then m = m - Vector
