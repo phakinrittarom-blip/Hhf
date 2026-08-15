@@ -1,0 +1,233 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local LP = Players.LocalPlayer
+local Cam = workspace.CurrentCamera
+
+-- หาที่วาง GUI ให้ได้
+local function GetGuiParent()
+	local success, result = pcall(function()
+		return gethui and gethui()
+	end)
+	if success and result then return result end
+
+	success, result = pcall(function()
+		return game.CoreGui
+	end)
+	if success and result then return result end
+
+	return LP:WaitForChild("PlayerGui")
+end
+
+local Parent = GetGuiParent()
+
+local S = {Speed = 16, Jump = 50, FlySpeed = 50, Push = 150, Fly = false, ESP = false}
+local BV, BG, Conn
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "PhakinESP"
+ESPFolder.Parent = Parent
+
+-- ฟังก์ชันหลัก
+local function Push()
+	local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+	for _, p in pairs(Players:GetPlayers()) do
+		if p \~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+			local t = p.Character.HumanoidRootPart
+			t.AssemblyLinearVelocity = (t.Position - hrp.Position).Unit * S.Push + Vector3.new(0, 40, 0)
+		end
+	end
+end
+
+local function StopFly()
+	S.Fly = false
+	if Conn then Conn:Disconnect() Conn = nil end
+	if BV then BV:Destroy() BV = nil end
+	if BG then BG:Destroy() BG = nil end
+	local h = LP.Character and LP.Character:FindFirstChild("Humanoid")
+	if h then h.PlatformStand = false end
+end
+
+local function StartFly()
+	local c = LP.Character
+	if not c then return end
+	local hrp = c:FindFirstChild("HumanoidRootPart")
+	local h = c:FindFirstChild("Humanoid")
+	if not hrp or not h then return end
+	StopFly()
+	S.Fly = true
+	h.PlatformStand = true
+	BV = Instance.new("BodyVelocity")
+	BV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+	BV.Parent = hrp
+	BG = Instance.new("BodyGyro")
+	BG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+	BG.P = 9e4
+	BG.Parent = hrp
+	Conn = RunService.RenderStepped:Connect(function()
+		if not S.Fly or not hrp.Parent then StopFly() return end
+		BG.CFrame = Cam.CFrame
+		local m = Vector3.zero
+		if UIS:IsKeyDown(Enum.KeyCode.W) then m = m + Cam.CFrame.LookVector end
+		if UIS:IsKeyDown(Enum.KeyCode.S) then m = m - Cam.CFrame.LookVector end
+		if UIS:IsKeyDown(Enum.KeyCode.A) then m = m - Cam.CFrame.RightVector end
+		if UIS:IsKeyDown(Enum.KeyCode.D) then m = m + Cam.CFrame.RightVector end
+		if UIS:IsKeyDown(Enum.KeyCode.Space) then m = m + Vector3.new(0, 1, 0) end
+		if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then m = m - Vector3.new(0, 1, 0) end
+		BV.Velocity = m.Magnitude > 0 and m.Unit * S.FlySpeed or Vector3.zero
+	end)
+end
+
+local function MakeESP(p)
+	if p == LP then return end
+	local hrp = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+	if ESPFolder:FindFirstChild(p.Name) then ESPFolder[p.Name]:Destroy() end
+	local bb = Instance.new("BillboardGui")
+	bb.Name = p.Name
+	bb.Adornee = hrp
+	bb.Size = UDim2.new(0, 100, 0, 40)
+	bb.StudsOffset = Vector3.new(0, 3, 0)
+	bb.AlwaysOnTop = true
+	bb.Parent = ESPFolder
+	local n = Instance.new("TextLabel")
+	n.Size = UDim2.new(1, 0, 0.5, 0)
+	n.BackgroundTransparency = 1
+	n.Text = p.Name
+	n.TextColor3 = Color3.fromRGB(0, 170, 255)
+	n.TextStrokeTransparency = 0
+	n.Font = Enum.Font.GothamBold
+	n.TextSize = 14
+	n.Parent = bb
+	local d = Instance.new("TextLabel")
+	d.Size = UDim2.new(1, 0, 0.5, 0)
+	d.Position = UDim2.new(0, 0, 0.5, 0)
+	d.BackgroundTransparency = 1
+	d.TextColor3 = Color3.new(1, 1, 1)
+	d.TextStrokeTransparency = 0
+	d.Font = Enum.Font.Gotham
+	d.TextSize = 12
+	d.Parent = bb
+	RunService.RenderStepped:Connect(function()
+		if not S.ESP or not hrp.Parent then bb:Destroy() return end
+		local my = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+		if my then d.Text = math.floor((my.Position - hrp.Position).Magnitude) .. " studs" end
+	end)
+end
+
+local function Apply()
+	local h = LP.Character and LP.Character:FindFirstChild("Humanoid")
+	if h then
+		h.WalkSpeed = S.Speed
+		h.JumpPower = S.Jump
+	end
+end
+
+LP.CharacterAdded:Connect(function()
+	task.wait(0.5)
+	Apply()
+	if S.Fly then StartFly() end
+end)
+
+-- สร้าง GUI
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "PhakinHub"
+Gui.ResetOnSpawn = false
+Gui.Parent = Parent
+
+local OpenBtn = Instance.new("TextButton")
+OpenBtn.Size = UDim2.new(0, 50, 0, 50)
+OpenBtn.Position = UDim2.new(0, 20, 0.4, 0)
+OpenBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+OpenBtn.Text = "PH"
+OpenBtn.TextColor3 = Color3.new(1, 1, 1)
+OpenBtn.Font = Enum.Font.GothamBold
+OpenBtn.TextSize = 18
+OpenBtn.Parent = Gui
+Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
+
+local Main = Instance.new("Frame")
+Main.Size = UDim2.new(0, 240, 0, 340)
+Main.Position = UDim2.new(0.5, -120, 0.5, -170)
+Main.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Main.Active = true
+Main.Draggable = true
+Main.Parent = Gui
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 35)
+Title.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+Title.Text = "phakin hub"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+Title.Parent = Main
+Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 10)
+
+local Close = Instance.new("TextButton")
+Close.Size = UDim2.new(0, 30, 0, 30)
+Close.Position = UDim2.new(1, -33, 0, 2)
+Close.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+Close.Text = "X"
+Close.TextColor3 = Color3.new(1, 1, 1)
+Close.Font = Enum.Font.GothamBold
+Close.TextSize = 14
+Close.Parent = Main
+Instance.new("UICorner", Close).CornerRadius = UDim.new(0, 6)
+
+local function Toggle()
+	Main.Visible = not Main.Visible
+end
+OpenBtn.MouseButton1Click:Connect(Toggle)
+Close.MouseButton1Click:Connect(Toggle)
+
+local y = 45
+local function Btn(text, color, func)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(1, -20, 0, 32)
+	b.Position = UDim2.new(0, 10, 0, y)
+	b.BackgroundColor3 = color
+	b.Text = text
+	b.TextColor3 = Color3.new(1, 1, 1)
+	b.Font = Enum.Font.Gotham
+	b.TextSize = 14
+	b.Parent = Main
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+	b.MouseButton1Click:Connect(func)
+	y = y + 38
+end
+
+Btn("บิน เปิด/ปิด", Color3.fromRGB(40, 40, 40), function()
+	if S.Fly then StopFly() else StartFly() end
+end)
+
+Btn("ESP เปิด/ปิด", Color3.fromRGB(40, 40, 40), function()
+	S.ESP = not S.ESP
+	ESPFolder:ClearAllChildren()
+	if S.ESP then
+		for _, p in pairs(Players:GetPlayers()) do
+			MakeESP(p)
+		end
+	end
+end)
+
+Btn("ผลักผู้เล่น", Color3.fromRGB(180, 50, 50), Push)
+
+Btn("ความเร็ว +20", Color3.fromRGB(40, 40, 40), function()
+	S.Speed = math.min(S.Speed + 20, 200)
+	Apply()
+end)
+
+Btn("โดดสูง +20", Color3.fromRGB(40, 40, 40), function()
+	S.Jump = math.min(S.Jump + 20, 300)
+	Apply()
+end)
+
+Btn("รีเซ็ตความเร็ว/โดด", Color3.fromRGB(40, 40, 40), function()
+	S.Speed = 16
+	S.Jump = 50
+	Apply()
+end)
+
+print("โหลดสำเร็จ - กดปุ่ม PH เพื่อเปิดเมนู")
